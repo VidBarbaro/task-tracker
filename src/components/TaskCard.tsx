@@ -9,6 +9,7 @@ import { useState } from 'react';
 interface TaskCardProps {
   task: Task;
   columnId: string;
+  onDelete?: () => void;  // Optional custom delete handler (for backlog)
 }
 
 const priorityColors = {
@@ -17,7 +18,7 @@ const priorityColors = {
   high: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
-export default function TaskCard({ task, columnId }: TaskCardProps) {
+export default function TaskCard({ task, columnId, onDelete }: TaskCardProps) {
   const { deleteTask, updateTask } = useBoardStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -82,7 +83,7 @@ export default function TaskCard({ task, columnId }: TaskCardProps) {
           </p>
         )}
         <button
-          onClick={() => deleteTask(task.id, columnId)}
+          onClick={() => onDelete ? onDelete() : deleteTask(task.id, columnId)}
           className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-opacity"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

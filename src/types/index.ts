@@ -2,7 +2,7 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  priority: 'low' | 'medium' | 'high';
+  priority: "low" | "medium" | "high";
   createdAt: Date;
 }
 
@@ -16,4 +16,5 @@ export interface Board {
   columns: Record<string, Column>;
   tasks: Record<string, Task>;
   columnOrder: string[];
+  backlogTaskIds: string[];  // Tasks not assigned to any column
 }

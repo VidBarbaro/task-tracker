@@ -17,9 +17,29 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useBoardStore } from '@/store/boardStore';
 import Column from './Column';
 import TaskCard from './TaskCard';
+import Backlog from './Backlog';
 
+/**
+ * 📚 LEARNING: Board Component (Main Container)
+ * 
+ * This is the main component that orchestrates the entire Kanban board.
+ * It handles:
+ * 1. DndContext - wraps everything to enable drag-and-drop
+ * 2. Layout - sidebar (backlog) + main area (columns)
+ * 3. Drag events - onDragStart, onDragOver, onDragEnd
+ */
 export default function Board() {
-  const { columns, tasks, columnOrder, addColumn, moveTask } = useBoardStore();
+  const { 
+    columns, 
+    tasks, 
+    columnOrder, 
+    backlogTaskIds,
+    addColumn, 
+    moveTask,
+    moveFromBacklog,
+    moveToBacklog,
+    reorderBacklog,
+  } = useBoardStore();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
@@ -35,7 +55,20 @@ export default function Board() {
     })
   );
 
+  /**
+   * 📚 LEARNING: Finding where a task lives
+   * 
+   * A task can be in:
+   * 1. A column (returns the column ID)
+   * 2. The backlog (returns 'backlog')
+   * 3. Nowhere (returns undefined)
+   */
   const findColumnByTaskId = (taskId: string): string | undefined => {
+    // Check if it's in the backlog
+    if (backlogTaskIds.includes(taskId)) {
+      return 'backlog';
+    }
+    // Check columns
     return Object.keys(columns).find((columnId) =>
       columns[columnId].taskIds.includes(taskId)
     );
@@ -45,6 +78,13 @@ export default function Board() {
     setActiveTaskId(event.active.id as string);
   };
 
+  /**
+   * 📚 LEARNING: handleDragOver
+   * 
+   * This fires continuously while dragging. We use it to:
+   * - Move tasks between containers in real-time (smooth UX)
+   * - Handle backlog ↔ column transfers
+   */
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -55,21 +95,43 @@ export default function Board() {
     const activeColumnId = findColumnByTaskId(activeId);
     let overColumnId = findColumnByTaskId(overId);
 
-    // If hovering over a column directly
-    if (!overColumnId && columns[overId]) {
-      overColumnId = overId;
+    // If hovering over a column or backlog directly
+    if (!overColumnId) {
+      if (columns[overId]) {
+        overColumnId = overId;
+      } else if (overId === 'backlog') {
+        overColumnId = 'backlog';
+      }
     }
 
     if (!activeColumnId || !overColumnId || activeColumnId === overColumnId) return;
 
-    // Move to different column
-    const overColumn = columns[overColumnId];
-    const overIndex = overColumn.taskIds.indexOf(overId);
-    const newIndex = overIndex >= 0 ? overIndex : overColumn.taskIds.length;
-
-    moveTask(activeId, activeColumnId, overColumnId, newIndex);
+    // Handle different transfer scenarios
+    if (activeColumnId === 'backlog' && overColumnId !== 'backlog') {
+      // Moving FROM backlog TO a column
+      const overColumn = columns[overColumnId];
+      const overIndex = overColumn.taskIds.indexOf(overId);
+      const newIndex = overIndex >= 0 ? overIndex : overColumn.taskIds.length;
+      moveFromBacklog(activeId, overColumnId, newIndex);
+    } else if (activeColumnId !== 'backlog' && overColumnId === 'backlog') {
+      // Moving FROM a column TO backlog
+      moveToBacklog(activeId, activeColumnId);
+    } else if (activeColumnId !== 'backlog' && overColumnId !== 'backlog') {
+      // Moving between columns (not involving backlog)
+      const overColumn = columns[overColumnId];
+      const overIndex = overColumn.taskIds.indexOf(overId);
+      const newIndex = overIndex >= 0 ? overIndex : overColumn.taskIds.length;
+      moveTask(activeId, activeColumnId, overColumnId, newIndex);
+    }
   };
 
+  /**
+   * 📚 LEARNING: handleDragEnd
+   * 
+   * This fires when you release the mouse. We use it for:
+   * - Reordering within the same container
+   * - Final cleanup (reset activeTaskId)
+   */
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTaskId(null);
@@ -84,21 +146,34 @@ export default function Board() {
     const activeColumnId = findColumnByTaskId(activeId);
     let overColumnId = findColumnByTaskId(overId);
 
-    // If dropping on a column
-    if (!overColumnId && columns[overId]) {
-      overColumnId = overId;
+    // If dropping on a column or backlog
+    if (!overColumnId) {
+      if (columns[overId]) {
+        overColumnId = overId;
+      } else if (overId === 'backlog') {
+        overColumnId = 'backlog';
+      }
     }
 
     if (!activeColumnId || !overColumnId) return;
 
     if (activeColumnId === overColumnId) {
-      // Reorder within same column
-      const column = columns[activeColumnId];
-      const oldIndex = column.taskIds.indexOf(activeId);
-      const newIndex = column.taskIds.indexOf(overId);
-
-      if (oldIndex !== newIndex) {
-        moveTask(activeId, activeColumnId, activeColumnId, newIndex);
+      // Reorder within same container
+      if (activeColumnId === 'backlog') {
+        // Reorder within backlog
+        const oldIndex = backlogTaskIds.indexOf(activeId);
+        const newIndex = backlogTaskIds.indexOf(overId);
+        if (oldIndex !== newIndex && newIndex >= 0) {
+          reorderBacklog(activeId, newIndex);
+        }
+      } else {
+        // Reorder within a column
+        const column = columns[activeColumnId];
+        const oldIndex = column.taskIds.indexOf(activeId);
+        const newIndex = column.taskIds.indexOf(overId);
+        if (oldIndex !== newIndex) {
+          moveTask(activeId, activeColumnId, activeColumnId, newIndex);
+        }
       }
     }
   };
@@ -131,16 +206,22 @@ export default function Board() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 p-6 overflow-x-auto h-full">
-        {columnOrder.map((columnId) => {
-          const column = columns[columnId];
-          if (!column) return null;
-          const columnTasks = column.taskIds
-            .map((taskId) => tasks[taskId])
-            .filter(Boolean);
+      {/* 📚 LEARNING: Flex layout with sidebar */}
+      <div className="flex h-full">
+        {/* Backlog Sidebar */}
+        <Backlog />
+        
+        {/* Main Board Area */}
+        <div className="flex gap-4 p-6 overflow-x-auto flex-1">
+          {columnOrder.map((columnId) => {
+            const column = columns[columnId];
+            if (!column) return null;
+            const columnTasks = column.taskIds
+              .map((taskId) => tasks[taskId])
+              .filter(Boolean);
 
-          return <Column key={columnId} column={column} tasks={columnTasks} />;
-        })}
+            return <Column key={columnId} column={column} tasks={columnTasks} />;
+          })}
 
         {/* Add Column Button */}
         <div className="min-w-72">
@@ -184,6 +265,7 @@ export default function Board() {
               Add Column
             </button>
           )}
+        </div>
         </div>
       </div>
 
