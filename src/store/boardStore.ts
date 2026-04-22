@@ -51,20 +51,81 @@ const initialLabels: Record<string, Label> = {
   documentation: { id: "documentation", name: "Docs", color: "bg-green-500" },
 };
 
-const initialColumns: Record<string, Column> = {
-  todo: { id: "todo", title: "To Do", taskIds: [] },
-  "in-progress": { id: "in-progress", title: "In Progress", taskIds: [] },
-  done: { id: "done", title: "Done", taskIds: [] },
+// Sample tasks for demo
+const initialTasks: Record<string, Task> = {
+  "task-1": {
+    id: "task-1",
+    title: "Set up project structure",
+    description: "Initialize Next.js with TypeScript and Tailwind CSS",
+    priority: "high",
+    labelIds: ["feature"],
+    createdAt: new Date("2026-04-20"),
+  },
+  "task-2": {
+    id: "task-2",
+    title: "Design database schema",
+    description: "Plan the data models for tasks, columns, and labels",
+    priority: "high",
+    labelIds: ["documentation"],
+    createdAt: new Date("2026-04-20"),
+  },
+  "task-3": {
+    id: "task-3",
+    title: "Implement drag and drop",
+    description: "Add @dnd-kit for moving tasks between columns",
+    priority: "medium",
+    labelIds: ["feature"],
+    createdAt: new Date("2026-04-21"),
+  },
+  "task-4": {
+    id: "task-4",
+    title: "Fix card hover state",
+    description: "Shadow not showing correctly on dark mode",
+    priority: "low",
+    labelIds: ["bug"],
+    createdAt: new Date("2026-04-21"),
+  },
+  "task-5": {
+    id: "task-5",
+    title: "Add task modal",
+    description: "Click on task to edit details",
+    priority: "medium",
+    labelIds: ["feature", "improvement"],
+    createdAt: new Date("2026-04-22"),
+  },
+  "task-6": {
+    id: "task-6",
+    title: "Add search functionality",
+    description: "Filter tasks by title, label, or priority",
+    priority: "medium",
+    labelIds: ["feature"],
+    createdAt: new Date("2026-04-22"),
+  },
+  "task-7": {
+    id: "task-7",
+    title: "Write unit tests",
+    priority: "low",
+    labelIds: [],
+    createdAt: new Date("2026-04-22"),
+  },
 };
+
+const initialColumns: Record<string, Column> = {
+  todo: { id: "todo", title: "To Do", taskIds: ["task-5", "task-6"] },
+  "in-progress": { id: "in-progress", title: "In Progress", taskIds: ["task-3", "task-4"] },
+  done: { id: "done", title: "Done", taskIds: ["task-1", "task-2"] },
+};
+
+const initialBacklog = ["task-7"];
 
 export const useBoardStore = create<BoardState>()(
   persist(
     (set) => ({
       columns: initialColumns,
-      tasks: {},
+      tasks: initialTasks,
       labels: initialLabels,
       columnOrder: ["todo", "in-progress", "done"],
-      backlogTaskIds: [],
+      backlogTaskIds: initialBacklog,
 
       addTask: (columnId, title, description, priority = "medium") => {
         const taskId = uuidv4();

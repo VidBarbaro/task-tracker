@@ -2,8 +2,6 @@
 
 A Kanban-style task management board built with Next.js, TypeScript, and Tailwind CSS.
 
-![Task Tracker Screenshot](screenshot.png)
-
 ## Features
 
 - **Drag & drop** tasks between columns
