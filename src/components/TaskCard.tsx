@@ -31,7 +31,7 @@ const priorityColors = {
 };
 
 export default function TaskCard({ task, columnId, onDelete }: TaskCardProps) {
-  const { deleteTask, updateTask } = useBoardStore();
+  const { deleteTask, labels } = useBoardStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Track if this is a click or drag
@@ -107,6 +107,24 @@ export default function TaskCard({ task, columnId, onDelete }: TaskCardProps) {
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 line-clamp-2">
             {task.description}
           </p>
+        )}
+
+        {/* Labels */}
+        {task.labelIds && task.labelIds.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {task.labelIds.map((labelId) => {
+              const label = labels[labelId];
+              if (!label) return null;
+              return (
+                <span
+                  key={labelId}
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-white ${label.color}`}
+                >
+                  {label.name}
+                </span>
+              );
+            })}
+          </div>
         )}
         
         <div className="flex items-center justify-between mt-3">

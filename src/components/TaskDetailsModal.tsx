@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Task } from '@/types';
 import { useBoardStore } from '@/store/boardStore';
 import Modal from './Modal';
+import LabelPicker from './LabelPicker';
 
 /**
  * 📚 LEARNING: Form State Management
@@ -30,12 +31,13 @@ const priorityOptions: { value: Task['priority']; label: string; color: string }
 ];
 
 export default function TaskDetailsModal({ task, columnId, isOpen, onClose }: TaskDetailsModalProps) {
-  const { updateTask } = useBoardStore();
+  const { updateTask, addLabelToTask, removeLabelFromTask } = useBoardStore();
 
   // Local form state - copies of the task data
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Task['priority']>('medium');
+  const [labelIds, setLabelIds] = useState<string[]>([]);
 
   // Sync local state when task changes (or modal opens)
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function TaskDetailsModal({ task, columnId, isOpen, onClose }: Ta
       setTitle(task.title);
       setDescription(task.description || '');
       setPriority(task.priority);
+      setLabelIds(task.labelIds || []);
     }
   }, [task]);
 
@@ -53,9 +56,18 @@ export default function TaskDetailsModal({ task, columnId, isOpen, onClose }: Ta
       title: title.trim(),
       description: description.trim() || undefined,
       priority,
+      labelIds,
     });
 
     onClose();
+  };
+
+  const handleToggleLabel = (labelId: string) => {
+    if (labelIds.includes(labelId)) {
+      setLabelIds(labelIds.filter(id => id !== labelId));
+    } else {
+      setLabelIds([...labelIds, labelId]);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -103,6 +115,17 @@ export default function TaskDetailsModal({ task, columnId, isOpen, onClose }: Ta
             rows={3}
             className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             placeholder="Add a description..."
+          />
+        </div>
+
+        {/* Labels */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+            Labels
+          </label>
+          <LabelPicker
+            selectedLabelIds={labelIds}
+            onToggle={handleToggleLabel}
           />
         </div>
 

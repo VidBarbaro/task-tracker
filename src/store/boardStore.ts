@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
-import { Task, Column, Board } from "@/types";
+import { Task, Column, Board, Label } from "@/types";
 
 interface BoardState extends Board {
   // Task actions
@@ -35,7 +35,21 @@ interface BoardState extends Board {
   addColumn: (title: string) => void;
   deleteColumn: (columnId: string) => void;
   updateColumnTitle: (columnId: string, title: string) => void;
+  // Label actions
+  addLabel: (name: string, color: string) => void;
+  updateLabel: (labelId: string, updates: Partial<Omit<Label, "id">>) => void;
+  deleteLabel: (labelId: string) => void;
+  addLabelToTask: (taskId: string, labelId: string) => void;
+  removeLabelFromTask: (taskId: string, labelId: string) => void;
 }
+
+// Default labels to get started
+const initialLabels: Record<string, Label> = {
+  bug: { id: "bug", name: "Bug", color: "bg-red-500" },
+  feature: { id: "feature", name: "Feature", color: "bg-purple-500" },
+  improvement: { id: "improvement", name: "Improvement", color: "bg-blue-500" },
+  documentation: { id: "documentation", name: "Docs", color: "bg-green-500" },
+};
 
 const initialColumns: Record<string, Column> = {
   todo: { id: "todo", title: "To Do", taskIds: [] },
@@ -48,6 +62,7 @@ export const useBoardStore = create<BoardState>()(
     (set) => ({
       columns: initialColumns,
       tasks: {},
+      labels: initialLabels,
       columnOrder: ["todo", "in-progress", "done"],
       backlogTaskIds: [],
 
@@ -58,6 +73,7 @@ export const useBoardStore = create<BoardState>()(
           title,
           description,
           priority,
+          labelIds: [],
           createdAt: new Date(),
         };
 
@@ -176,6 +192,7 @@ export const useBoardStore = create<BoardState>()(
           title,
           description,
           priority,
+          labelIds: [],
           createdAt: new Date(),
         };
 
@@ -233,6 +250,69 @@ export const useBoardStore = create<BoardState>()(
           filtered.splice(newIndex, 0, taskId);
           return { backlogTaskIds: filtered };
         });
+      },
+
+      // Label actions
+      addLabel: (name, color) => {
+        const labelId = uuidv4();
+        set((state) => ({
+          labels: {
+            ...state.labels,
+            [labelId]: { id: labelId, name, color },
+          },
+        }));
+      },
+
+      updateLabel: (labelId, updates) => {
+        set((state) => ({
+          labels: {
+            ...state.labels,
+            [labelId]: { ...state.labels[labelId], ...updates },
+          },
+        }));
+      },
+
+      deleteLabel: (labelId) => {
+        set((state) => {
+          const { [labelId]: _, ...remainingLabels } = state.labels;
+          // Also remove this label from all tasks
+          const updatedTasks = { ...state.tasks };
+          Object.keys(updatedTasks).forEach((taskId) => {
+            updatedTasks[taskId] = {
+              ...updatedTasks[taskId],
+              labelIds: updatedTasks[taskId].labelIds.filter((id) => id !== labelId),
+            };
+          });
+          return { labels: remainingLabels, tasks: updatedTasks };
+        });
+      },
+
+      addLabelToTask: (taskId, labelId) => {
+        set((state) => {
+          const task = state.tasks[taskId];
+          if (task.labelIds.includes(labelId)) return state; // Already has label
+          return {
+            tasks: {
+              ...state.tasks,
+              [taskId]: {
+                ...task,
+                labelIds: [...task.labelIds, labelId],
+              },
+            },
+          };
+        });
+      },
+
+      removeLabelFromTask: (taskId, labelId) => {
+        set((state) => ({
+          tasks: {
+            ...state.tasks,
+            [taskId]: {
+              ...state.tasks[taskId],
+              labelIds: state.tasks[taskId].labelIds.filter((id) => id !== labelId),
+            },
+          },
+        }));
       },
     }),
     {
